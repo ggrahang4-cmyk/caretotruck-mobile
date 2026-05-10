@@ -96,6 +96,7 @@ export default function SettingsScreen() {
   const [displayName, setDisplayName]         = useState("");
   const [phone, setPhone]                     = useState("");
   const [mcNumber, setMcNumber]               = useState("");
+  const [usdotNumber, setUsdotNumber]         = useState("");
   const [targetCpm, setTargetCpm]             = useState("");
   const [expMiles, setExpMiles]               = useState("");
   const [insuranceProvider, setInsProvider]   = useState("");
@@ -107,6 +108,10 @@ export default function SettingsScreen() {
   const [saved, setSaved]                     = useState(false);
   const [coiScanning, setCoiScanning]         = useState(false);
   const [coiMsg, setCoiMsg]                   = useState<string | null>(null);
+  const [medCardScanning, setMedCardScanning] = useState(false);
+  const [medCardMsg, setMedCardMsg]           = useState<string | null>(null);
+  const [authorityScanning, setAuthorityScanning] = useState(false);
+  const [authorityMsg, setAuthorityMsg]       = useState<string | null>(null);
 
   useEffect(() => {
     if (!uid) return;
@@ -117,6 +122,7 @@ export default function SettingsScreen() {
         setDisplayName(u.displayName ?? "");
         setPhone(u.phone ?? "");
         setMcNumber(u.mcNumber ?? "");
+        setUsdotNumber(u.usdotNumber ?? "");
         setTargetCpm(u.targetCpmCents ? (u.targetCpmCents / 100).toFixed(3) : "");
         setExpMiles(u.expectedMonthlyMiles ? String(u.expectedMonthlyMiles) : "");
         setInsProvider(u.insuranceProvider ?? "");
@@ -172,6 +178,69 @@ export default function SettingsScreen() {
     }
   }
 
+  async function scanMedCard() {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) { Alert.alert("Permission needed", "Allow photo library access to upload your medical card."); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.85 });
+    if (result.canceled || !result.assets[0]) return;
+    setMedCardScanning(true);
+    setMedCardMsg(null);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const asset = result.assets[0];
+      const fd = new FormData();
+      fd.append("file", { uri: asset.uri, type: "image/jpeg", name: "medcard.jpg" } as any);
+      fd.append("type", "medcard");
+      const res = await fetch("https://www.caretotruck.com/api/extract-document", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: fd,
+      });
+      if (!res.ok) throw new Error("Scan failed — try again.");
+      const data = await res.json();
+      if (data.expirationDate) setMedCardExpiry(data.expirationDate);
+      setMedCardMsg(data.expirationDate ? `Medical card expiry set to ${data.expirationDate}.` : "Expiry not found — enter manually.");
+    } catch (err) {
+      setMedCardMsg((err as Error).message || "Could not read medical card.");
+    } finally {
+      setMedCardScanning(false);
+    }
+  }
+
+  async function scanAuthority() {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) { Alert.alert("Permission needed", "Allow photo library access to upload your authority letter."); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.85 });
+    if (result.canceled || !result.assets[0]) return;
+    setAuthorityScanning(true);
+    setAuthorityMsg(null);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const asset = result.assets[0];
+      const fd = new FormData();
+      fd.append("file", { uri: asset.uri, type: "image/jpeg", name: "authority.jpg" } as any);
+      fd.append("type", "authority");
+      const res = await fetch("https://www.caretotruck.com/api/extract-document", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: fd,
+      });
+      if (!res.ok) throw new Error("Scan failed — try again.");
+      const data = await res.json();
+      if (data.mcNumber)    setMcNumber(data.mcNumber);
+      if (data.usdotNumber) setUsdotNumber(data.usdotNumber);
+      const parts: string[] = [];
+      if (data.legalName)   parts.push(data.legalName);
+      if (data.mcNumber)    parts.push(data.mcNumber);
+      if (data.usdotNumber) parts.push(`DOT ${data.usdotNumber}`);
+      setAuthorityMsg(parts.length ? "Filled: " + parts.join(" · ") : "Fields filled — review below.");
+    } catch (err) {
+      setAuthorityMsg((err as Error).message || "Could not read authority document.");
+    } finally {
+      setAuthorityScanning(false);
+    }
+  }
+
   async function handleSave() {
     if (!uid) return;
     setSaving(true);
@@ -186,6 +255,7 @@ export default function SettingsScreen() {
         displayName:        displayName.trim(),
         phone:              phone.trim() || null,
         mcNumber:           mcNumber.trim() || null,
+        usdotNumber:        usdotNumber.trim() || null,
         targetCpmCents,
         expectedMonthlyMiles: miles,
         insuranceProvider:  insuranceProvider.trim() || null,
@@ -230,6 +300,9 @@ export default function SettingsScreen() {
         <Field label="MC Number">
           <Input value={mcNumber} onChangeText={setMcNumber} placeholder="MC-123456" />
         </Field>
+        <Field label="USDOT Number">
+          <Input value={usdotNumber} onChangeText={setUsdotNumber} placeholder="1234567" keyboardType="numeric" />
+        </Field>
       </SectionCard>
 
       {/* Compliance / Insurance */}
@@ -248,9 +321,40 @@ export default function SettingsScreen() {
             {coiScanning ? "Scanning certificate…" : "Scan Certificate of Insurance"}
           </Text>
         </TouchableOpacity>
-        {coiMsg && (
-          <Text style={styles.coiMsg}>{coiMsg}</Text>
-        )}
+        {coiMsg && <Text style={styles.coiMsg}>{coiMsg}</Text>}
+
+        {/* Medical card scan */}
+        <TouchableOpacity
+          style={[styles.coiBtn, medCardScanning && { opacity: 0.6 }]}
+          onPress={scanMedCard}
+          disabled={medCardScanning}
+        >
+          {medCardScanning
+            ? <ActivityIndicator color={colors.primary} size="small" />
+            : <Ionicons name="id-card-outline" size={16} color={colors.primary} />
+          }
+          <Text style={styles.coiBtnText}>
+            {medCardScanning ? "Scanning medical card…" : "Scan DOT Medical Card"}
+          </Text>
+        </TouchableOpacity>
+        {medCardMsg && <Text style={styles.coiMsg}>{medCardMsg}</Text>}
+
+        {/* Authority letter scan */}
+        <TouchableOpacity
+          style={[styles.coiBtn, authorityScanning && { opacity: 0.6 }]}
+          onPress={scanAuthority}
+          disabled={authorityScanning}
+        >
+          {authorityScanning
+            ? <ActivityIndicator color={colors.primary} size="small" />
+            : <Ionicons name="document-text-outline" size={16} color={colors.primary} />
+          }
+          <Text style={styles.coiBtnText}>
+            {authorityScanning ? "Scanning authority letter…" : "Scan FMCSA Authority Letter"}
+          </Text>
+        </TouchableOpacity>
+        {authorityMsg && <Text style={styles.coiMsg}>{authorityMsg}</Text>}
+
         <Field label="Insurance provider">
           <Input value={insuranceProvider} onChangeText={setInsProvider} placeholder="Progressive Commercial" />
         </Field>
