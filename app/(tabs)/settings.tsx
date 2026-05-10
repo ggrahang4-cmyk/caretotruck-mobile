@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   View, Text, ScrollView, StyleSheet, TextInput,
-  TouchableOpacity, ActivityIndicator, Alert, Platform,
+  TouchableOpacity, ActivityIndicator, Alert,
 } from "react-native";
 import { doc, onSnapshot, updateDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { signOut, updateProfile } from "firebase/auth";
