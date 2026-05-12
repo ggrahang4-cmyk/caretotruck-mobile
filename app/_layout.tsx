@@ -23,7 +23,7 @@ export default function RootLayout() {
     const inAuthGroup = segments[0] === "(auth)";
 
     if (!user && !inAuthGroup) {
-      router.replace("/(auth)/login");
+      router.replace("/(auth)/landing");
     } else if (user && inAuthGroup) {
       router.replace("/(tabs)");
     }
@@ -50,6 +50,7 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="(auth)/landing" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="trips/new" options={{ title: "Log Trip", presentation: "modal" }} />
         <Stack.Screen name="trips/[id]" options={{ title: "Trip Detail" }} />
