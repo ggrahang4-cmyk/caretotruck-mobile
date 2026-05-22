@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  RefreshControl,
+  RefreshControl, Image,
 } from "react-native";
 import { useRouter } from "expo-router";
 import {
@@ -117,7 +117,23 @@ export default function DashboardScreen() {
         where("pickupAt", "<",  Timestamp.fromDate(qEnd)),
         orderBy("pickupAt", "desc"),
         limit(100)),
-      (s) => setTrips(s.docs.map((d) => ({ id: d.id, ...d.data() } as TripDoc & { id: string })))
+      (s) => setTrips(s.docs.map((d) => ({ id: d.id, ...d.data() } as TripDoc & { id: string }))),
+      (err) => {
+        console.warn("[index] trips error, falling back", err);
+        unsubs.push(onSnapshot(
+          query(collection(db, "trips"), where("userId", "==", uid), limit(100)),
+          (s) => {
+            const all = s.docs.map((d) => ({ id: d.id, ...d.data() } as TripDoc & { id: string }));
+            const filtered = all.filter(d => {
+              if (!d.pickupAt) return false;
+              const t = d.pickupAt.toMillis();
+              return t >= qStart.getTime() && t < qEnd.getTime();
+            });
+            filtered.sort((a, b) => (b.pickupAt?.toMillis() ?? 0) - (a.pickupAt?.toMillis() ?? 0));
+            setTrips(filtered);
+          }
+        ));
+      }
     ));
 
     unsubs.push(onSnapshot(
@@ -127,7 +143,23 @@ export default function DashboardScreen() {
         where("transactionDate", "<",  Timestamp.fromDate(qEnd)),
         orderBy("transactionDate", "desc"),
         limit(200)),
-      (s) => setReceipts(s.docs.map((d) => ({ id: d.id, ...d.data() } as ReceiptDoc & { id: string })))
+      (s) => setReceipts(s.docs.map((d) => ({ id: d.id, ...d.data() } as ReceiptDoc & { id: string }))),
+      (err) => {
+        console.warn("[index] receipts error, falling back", err);
+        unsubs.push(onSnapshot(
+          query(collection(db, "receipts"), where("userId", "==", uid), limit(200)),
+          (s) => {
+            const all = s.docs.map((d) => ({ id: d.id, ...d.data() } as ReceiptDoc & { id: string }));
+            const filtered = all.filter(d => {
+              if (!d.transactionDate) return false;
+              const t = d.transactionDate.toMillis();
+              return t >= qStart.getTime() && t < qEnd.getTime();
+            });
+            filtered.sort((a, b) => (b.transactionDate?.toMillis() ?? 0) - (a.transactionDate?.toMillis() ?? 0));
+            setReceipts(filtered);
+          }
+        ));
+      }
     ));
 
     unsubs.push(onSnapshot(
@@ -177,6 +209,19 @@ export default function DashboardScreen() {
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
     >
+      {/* Hero Header */}
+      <View style={styles.hero}>
+        <View style={styles.heroContent}>
+          <Text style={styles.heroGreeting}>Keep on truckin'</Text>
+          <Text style={styles.heroSubtitle}>Track your CPM, trips, and Schedule C expenses in real-time.</Text>
+        </View>
+        <Image
+          source={require("@/assets/truck_asset.png")}
+          style={styles.heroImage}
+          resizeMode="contain"
+        />
+      </View>
+
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Overview · {qLabel}</Text>
       </View>
@@ -257,6 +302,11 @@ export default function DashboardScreen() {
         <QuickAction icon="📷" label="Scan Receipt" onPress={() => router.push("/receipts/capture")} />
         <QuickAction icon="📋" label="All Trips" onPress={() => router.push("/(tabs)/trips")} />
       </View>
+      <View style={styles.row}>
+        <QuickAction icon="🏢" label="Fixed Costs" onPress={() => router.push("/fixed-costs")} />
+        <QuickAction icon="📑" label="IFTA Prep" onPress={() => router.push("/ifta")} />
+        <View style={{ flex: 1, margin: spacing.xs / 2 }} />
+      </View>
 
       {/* Recent Trips */}
       {recentTrips.length > 0 && (
@@ -299,6 +349,36 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   content: { padding: spacing.md, paddingBottom: spacing.xl },
+  hero: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: spacing.md,
+    overflow: "hidden",
+  },
+  heroContent: {
+    flex: 1,
+  },
+  heroGreeting: {
+    color: colors.textPrimary,
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  heroSubtitle: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    marginTop: 4,
+    lineHeight: 16,
+  },
+  heroImage: {
+    width: 90,
+    height: 90,
+    marginLeft: spacing.sm,
+  },
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.sm },
   sectionTitle: { color: colors.textSecondary, fontSize: 12, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.5 },
   seeAll: { color: colors.primary, fontSize: 13 },

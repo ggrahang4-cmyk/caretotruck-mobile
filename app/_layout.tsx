@@ -23,7 +23,7 @@ export default function RootLayout() {
     const inAuthGroup = segments[0] === "(auth)";
 
     if (!user && !inAuthGroup) {
-      router.replace("/(auth)/landing");
+      router.replace("/(auth)/login");
     } else if (user && inAuthGroup) {
       router.replace("/(tabs)");
     }
@@ -58,6 +58,8 @@ export default function RootLayout() {
         <Stack.Screen name="receipts/[id]" options={{ title: "Receipt" }} />
         <Stack.Screen name="inspections/new" options={{ title: "New Inspection", presentation: "modal" }} />
         <Stack.Screen name="inspections/[id]" options={{ title: "Inspection Detail" }} />
+        <Stack.Screen name="fixed-costs" options={{ title: "Fixed Costs" }} />
+        <Stack.Screen name="ifta" options={{ title: "IFTA Prep" }} />
       </Stack>
     </GestureHandlerRootView>
   );
