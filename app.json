@@ -18,13 +18,19 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow CareTo Truck to access your camera to scan receipts."
+          "cameraPermission": "Allow CareTo Truck to access your camera to scan receipts, rate confirmations, and compliance documents."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow CareTo Truck to access your photos to upload receipts."
+          "photosPermission": "Allow CareTo Truck to access your photos to upload saved receipts, rate confirmations, and compliance documents."
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow CareTo Truck to access your microphone so you can record voice memos for Pre-Trip and Post-Trip inspections."
         }
       ]
     ],
@@ -32,8 +38,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.caretotruck.mobile",
       "infoPlist": {
-        "NSCameraUsageDescription": "Scan receipts and rate confirmations.",
-        "NSPhotoLibraryUsageDescription": "Upload receipts from your photo library."
+        "NSCameraUsageDescription": "Allow CareTo Truck to access your camera to scan receipts, rate confirmations, and compliance documents.",
+        "NSPhotoLibraryUsageDescription": "Allow CareTo Truck to access your photos to upload saved receipts, rate confirmations, and compliance documents.",
+        "NSMicrophoneUsageDescription": "Allow CareTo Truck to access your microphone so you can record voice memos for Pre-Trip and Post-Trip inspections."
       }
     },
     "android": {
@@ -45,13 +52,20 @@
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "WRITE_EXTERNAL_STORAGE",
+        "RECORD_AUDIO"
       ],
       "edgeToEdgeEnabled": true
     },
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/caretotruck-mobile"
     },
     "extra": {
       "router": {

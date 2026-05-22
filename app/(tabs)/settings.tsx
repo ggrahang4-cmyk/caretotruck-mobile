@@ -1,12 +1,17 @@
-                    import { useEffect, useState } from "react";
-                    import {
-                      View, Text, ScrollView, StyleSheet, TextInput,
-                      TouchableOpacity, ActivityIndicator, Alert, Linking,
-                    } from "react-native";
-                    import { doc, onSnapshot, updateDoc, serverTimestamp, Timestamp } from "firebase/firestore";
-                    import { signOut, updateProfile } from "firebase/auth";
-                    import * as ImagePicker from "expo-image-picker";
-                    import { auth, db } from "@/lib/firebase";
+import { useEffect, useState } from "react";
+import {
+  View, Text, ScrollView, StyleSheet, TextInput,
+  TouchableOpacity, ActivityIndicator, Alert, Linking, Platform,
+} from "react-native";
+import { doc, onSnapshot, updateDoc, serverTimestamp, Timestamp } from "firebase/firestore";
+import { signOut, updateProfile, deleteUser } from "firebase/auth";
+import * as ImagePicker from "expo-image-picker";
+import { auth, db } from "@/lib/firebase";
+import Constants from "expo-constants";
+
+const extra = Constants.expoConfig?.extra as Record<string, string> | undefined;
+const API_BASE =
+  (extra?.API_BASE_URL ?? process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://www.caretotruck.com").replace(/\/$/, "");
                     import { colors, spacing, radius } from "@/lib/theme";
                     import type { UserDoc } from "@/lib/types";
                     import { Ionicons } from "@expo/vector-icons";
@@ -152,10 +157,16 @@
                           const token = await auth.currentUser?.getIdToken();
                           const asset = result.assets[0];
                           const fd = new FormData();
-                          fd.append("file", { uri: asset.uri, type: "image/jpeg", name: "coi.jpg" } as any);
+                          if (Platform.OS === "web") {
+                            const resp = await fetch(asset.uri);
+                            const blob = await resp.blob();
+                            fd.append("file", blob, "coi.jpg");
+                          } else {
+                            fd.append("file", { uri: asset.uri, type: "image/jpeg", name: "coi.jpg" } as any);
+                          }
                           fd.append("type", "coi");
 
-                          const res = await fetch("https://www.caretotruck.com/api/extract-document", {
+                          const res = await fetch(`${API_BASE}/api/extract-document`, {
                             method: "POST",
                             headers: token ? { Authorization: `Bearer ${token}` } : {},
                             body: fd,
@@ -189,9 +200,15 @@
                           const token = await auth.currentUser?.getIdToken();
                           const asset = result.assets[0];
                           const fd = new FormData();
-                          fd.append("file", { uri: asset.uri, type: "image/jpeg", name: "medcard.jpg" } as any);
+                          if (Platform.OS === "web") {
+                            const resp = await fetch(asset.uri);
+                            const blob = await resp.blob();
+                            fd.append("file", blob, "medcard.jpg");
+                          } else {
+                            fd.append("file", { uri: asset.uri, type: "image/jpeg", name: "medcard.jpg" } as any);
+                          }
                           fd.append("type", "medcard");
-                          const res = await fetch("https://www.caretotruck.com/api/extract-document", {
+                          const res = await fetch(`${API_BASE}/api/extract-document`, {
                             method: "POST",
                             headers: token ? { Authorization: `Bearer ${token}` } : {},
                             body: fd,
@@ -218,9 +235,15 @@
                           const token = await auth.currentUser?.getIdToken();
                           const asset = result.assets[0];
                           const fd = new FormData();
-                          fd.append("file", { uri: asset.uri, type: "image/jpeg", name: "authority.jpg" } as any);
+                          if (Platform.OS === "web") {
+                            const resp = await fetch(asset.uri);
+                            const blob = await resp.blob();
+                            fd.append("file", blob, "authority.jpg");
+                          } else {
+                            fd.append("file", { uri: asset.uri, type: "image/jpeg", name: "authority.jpg" } as any);
+                          }
                           fd.append("type", "authority");
-                          const res = await fetch("https://www.caretotruck.com/api/extract-document", {
+                          const res = await fetch(`${API_BASE}/api/extract-document`, {
                             method: "POST",
                             headers: token ? { Authorization: `Bearer ${token}` } : {},
                             body: fd,
@@ -281,6 +304,22 @@
                         Alert.alert("Sign Out", "Are you sure?", [
                           { text: "Cancel", style: "cancel" },
                           { text: "Sign Out", style: "destructive", onPress: () => signOut(auth) },
+                        ]);
+                      }
+
+                      function handleDeleteAccount() {
+                        Alert.alert("Delete Account", "Are you absolutely sure? This will permanently delete your account and all associated data. This action cannot be undone.", [
+                          { text: "Cancel", style: "cancel" },
+                          { text: "Delete My Account", style: "destructive", onPress: async () => {
+                            try {
+                              const currentUser = auth.currentUser;
+                              if (currentUser) {
+                                await deleteUser(currentUser);
+                              }
+                            } catch (e) {
+                              Alert.alert("Error", "Please sign out and sign back in to verify your identity before deleting your account.");
+                            }
+                          }},
                         ]);
                       }
 
@@ -458,8 +497,14 @@
 
                           {/* Sign out */}
                           <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut}>
-                            <Ionicons name="log-out-outline" size={18} color={colors.danger} />
+                            <Ionicons name="log-out-outline" size={18} color={colors.textSecondary} />
                             <Text style={styles.signOutText}>Sign Out</Text>
+                          </TouchableOpacity>
+
+                          {/* Delete Account */}
+                          <TouchableOpacity style={[styles.signOutBtn, { marginTop: spacing.md }]} onPress={handleDeleteAccount}>
+                            <Ionicons name="warning-outline" size={18} color={colors.danger} />
+                            <Text style={[styles.signOutText, { color: colors.danger }]}>Delete Account</Text>
                           </TouchableOpacity>
                         </ScrollView>
                       );
